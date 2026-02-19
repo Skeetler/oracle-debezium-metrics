@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:debezium.io)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:docs.redhat.com)",
+      "WebFetch(domain:community.oracle.com)",
+      "WebFetch(domain:infohub.delltechnologies.com)"
+    ]
+  }
+}
