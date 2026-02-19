@@ -45,7 +45,6 @@ interface Recommendations {
   redoLogGroups: number;
   archiveRetentionHours: number;
   archiveRetentionDiskGb: number;
-  archiveDiskTotalGb: number;
   lobEnabled: boolean;
   lobReason: string;
   transactionRetentionMs: number;
@@ -58,7 +57,7 @@ interface Recommendations {
   warnings: string[];
 }
 
-export async function report(cfg: DbConfig, archiveDiskTotalGb: number): Promise<void> {
+export async function report(cfg: DbConfig): Promise<void> {
   await withConnection(cfg, async (conn) => {
     console.log("Reading collected data...\n");
 
@@ -95,9 +94,9 @@ export async function report(cfg: DbConfig, archiveDiskTotalGb: number): Promise
       recommendations: {} as Recommendations,
     };
 
-    diagReport.recommendations = computeRecommendations(diagReport, archiveDiskTotalGb);
+    diagReport.recommendations = computeRecommendations(diagReport);
 
-    const md = generateMarkdown(diagReport, archiveDiskTotalGb);
+    const md = generateMarkdown(diagReport);
     const env = generateEnvSnippet(diagReport.recommendations, diagReport);
 
     const outputDir = process.cwd();
@@ -195,7 +194,7 @@ function getMaxStringSize(data: any): string {
 
 // ── Recommendation engine ───────────────────────────────────────────────────
 
-function computeRecommendations(r: DiagReport, archiveDiskTotalGb: number): Recommendations {
+function computeRecommendations(r: DiagReport): Recommendations {
   const warnings: string[] = [];
   const hasLobs = r.lobColumns && r.lobColumns.length > 0;
 
@@ -238,17 +237,7 @@ function computeRecommendations(r: DiagReport, archiveDiskTotalGb: number): Reco
   );
   const archiveRetentionHours = Math.ceil(minRetentionMin / 60);
 
-  // Disk check
   const retentionDiskGb = r.archiveGbPerHour.p95 * archiveRetentionHours;
-  const availableGb = archiveDiskTotalGb * 0.85; // 85% usable
-
-  if (retentionDiskGb > availableGb) {
-    warnings.push(
-      `Recommended retention (${archiveRetentionHours}h) needs ~${retentionDiskGb.toFixed(0)}GB ` +
-      `but only ${availableGb.toFixed(0)}GB usable (85% of ${archiveDiskTotalGb}GB). ` +
-      `Expand archive disk or reduce redo log size.`
-    );
-  }
 
   // ── LOB ──
   let lobEnabled = false;
@@ -336,7 +325,6 @@ function computeRecommendations(r: DiagReport, archiveDiskTotalGb: number): Reco
     redoLogGroups,
     archiveRetentionHours,
     archiveRetentionDiskGb: Math.round(retentionDiskGb),
-    archiveDiskTotalGb: archiveDiskTotalGb,
     lobEnabled,
     lobReason,
     transactionRetentionMs: txnRetentionMs,
@@ -352,7 +340,7 @@ function computeRecommendations(r: DiagReport, archiveDiskTotalGb: number): Reco
 
 // ── Output generators ───────────────────────────────────────────────────────
 
-function generateMarkdown(r: DiagReport, archiveDiskTotalGb: number): string {
+function generateMarkdown(r: DiagReport): string {
   const rec = r.recommendations;
   const lines: string[] = [];
   const ln = (s = "") => lines.push(s);
@@ -407,7 +395,6 @@ function generateMarkdown(r: DiagReport, archiveDiskTotalGb: number): string {
   ln(`| LOB columns in captured tables | ${r.lobColumns?.length ?? 0} |`);
   ln(`| archive_lag_target | ${r.archiveLagTarget} |`);
   ln(`| max_string_size | ${r.maxStringSize} |`);
-  ln(`| Archive disk total | ${archiveDiskTotalGb} GB |`);
   ln();
 
   if (r.lobColumns && r.lobColumns.length > 0) {
@@ -431,8 +418,7 @@ function generateMarkdown(r: DiagReport, archiveDiskTotalGb: number): string {
 
   ln("### Archive Retention");
   ln(`- Retention: **${rec.archiveRetentionHours} hours**`);
-  ln(`- Estimated disk usage at this retention: **~${rec.archiveRetentionDiskGb} GB**`);
-  ln(`- Available disk (85% of ${archiveDiskTotalGb}GB): **${(archiveDiskTotalGb * 0.85).toFixed(0)} GB**`);
+  ln(`- Estimated disk needed: **~${rec.archiveRetentionDiskGb} GB**`);
   ln(`- RMAN delete clause: \`delete noprompt archivelog all completed before 'SYSDATE-${rec.archiveRetentionHours}/24';\``);
   ln();
 
@@ -541,7 +527,7 @@ function generateEnvSnippet(rec: Recommendations, r: DiagReport): string {
   ln("# DBA actions required:");
   ln(`# 1. Redo logs: ${rec.redoLogGroups} groups x ${rec.redoLogSizeGb}GB`);
   ln(`# 2. Archive retention: ${rec.archiveRetentionHours} hours (SYSDATE-${rec.archiveRetentionHours}/24)`);
-  ln(`#    Estimated disk: ~${rec.archiveRetentionDiskGb}GB of ${rec.archiveDiskTotalGb}GB`);
+  ln(`#    Estimated disk needed: ~${rec.archiveRetentionDiskGb}GB`);
   if (r.archiveLagTarget === 0) {
     ln("# 3. Set ARCHIVE_LAG_TARGET=1800");
   }

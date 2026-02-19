@@ -29,10 +29,9 @@ program
 program
   .command("report")
   .description("Generate diagnostic report and recommended .env from collected samples.")
-  .option("--archive-disk-gb <gb>", "Total archive disk size in GB (check with: df -h /orafra)", "250")
-  .action(async (opts) => {
+  .action(async () => {
     try {
-      await report(getDbConfig(), parseFloat(opts.archiveDiskGb));
+      await report(getDbConfig());
     } catch (e: any) {
       console.error(`\n✗ Report failed: ${e.message}`);
       process.exit(1);

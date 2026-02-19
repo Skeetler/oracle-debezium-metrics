@@ -13,7 +13,6 @@ npm run report       # Phase 2: read samples, generate report + .env
 npm run teardown     # Phase 3: drop tables and job
 ```
 
-The `report` command accepts `--archive-disk-gb <n>` (default 250) for the total archive filesystem size.
 
 There are no tests. `npx tsc --noEmit` is the only automated correctness check.
 
@@ -48,7 +47,7 @@ Configured via `.env` (see `.env.example`):
 | `CAPTURE_TABLE_PATTERN` | Oracle `REGEXP_LIKE` pattern for captured tables (required for setup) |
 | `SAMPLE_INTERVAL_MINUTES` | Sampling frequency, default 15 |
 
-`ARCHIVE_DISK_TOTAL_GB` in `.env.example` is informational only — the code reads it from the `--archive-disk-gb` CLI flag, not from env.
+`ARCHIVE_DISK_TOTAL_GB` was removed — the report outputs how much disk the recommended retention needs (`archiveRetentionDiskGb`), but does not compare against a user-supplied total.
 
 ## Reference
 
