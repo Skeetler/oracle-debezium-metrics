@@ -26,12 +26,19 @@ export function getConnectString(cfg: DbConfig): string {
   return `${cfg.host}:${cfg.port}/${cfg.service}`;
 }
 
+const PRIVILEGE_MAP: Record<string, number> = {
+  SYSDBA: oracledb.SYSDBA,
+  SYSOPER: oracledb.SYSOPER,
+};
+
 export async function withConnection<T>(cfg: DbConfig, fn: (conn: oracledb.Connection) => Promise<T>): Promise<T> {
   oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+  const privilegeKey = process.env.ORACLE_PRIVILEGE?.toUpperCase();
   const conn = await oracledb.getConnection({
     user: cfg.user,
     password: cfg.password,
     connectString: getConnectString(cfg),
+    ...(privilegeKey && PRIVILEGE_MAP[privilegeKey] ? { privilege: PRIVILEGE_MAP[privilegeKey] } : {}),
   });
   try {
     return await fn(conn);

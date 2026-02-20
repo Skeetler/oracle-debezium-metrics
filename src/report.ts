@@ -123,7 +123,7 @@ export async function report(cfg: DbConfig): Promise<void> {
 
 async function getSamplingDuration(conn: oracledb.Connection, user: string): Promise<number> {
   const rows = await queryRows<{ HOURS: number }>(conn, `
-    SELECT ROUND((MAX(sample_time) - MIN(sample_time)) * 24, 2) AS HOURS
+    SELECT ROUND((CAST(MAX(sample_time) AS DATE) - CAST(MIN(sample_time) AS DATE)) * 24, 2) AS HOURS
     FROM ${user}.${SAMPLE_TABLE}
   `);
   return rows[0]?.HOURS ?? 0;
